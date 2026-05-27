@@ -5,11 +5,12 @@ module "eks" {
   name               = local.name
   kubernetes_version = "1.31"
 
-  vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets
+  vpc_id     = data.aws_vpc.default.id
+  subnet_ids = data.aws_subnets.available.ids
 
   enable_cluster_creator_admin_permissions = true
   endpoint_public_access                   = true
+  encryption_config                         = null
 
   addons = {
     coredns                = {}

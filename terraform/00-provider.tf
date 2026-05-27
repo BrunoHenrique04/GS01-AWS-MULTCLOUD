@@ -17,3 +17,14 @@ locals {
   region = "us-east-1"
   name   = "fiap-eks-rm${local.rm}"
 }
+
+data "aws_vpc" "default" {
+  default = true
+}
+
+data "aws_subnets" "available" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}
