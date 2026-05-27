@@ -44,6 +44,10 @@ jobs:
         with:
           terraform_version: 1.9
 
+      - name: Cleanup Orphaned Log Group
+        run: |
+          aws logs delete-log-group --log-group-name /aws/eks/${{ env.EKS_NAME }}/cluster || true
+
       - name: Terraform Init & Apply
         run: |
           cd terraform
