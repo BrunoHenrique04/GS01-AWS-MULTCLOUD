@@ -12,7 +12,7 @@ on:
           - deploy
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: us-east-2
   RM: "566277"
   EKS_NAME: "fiap-eks-rm566277"
 

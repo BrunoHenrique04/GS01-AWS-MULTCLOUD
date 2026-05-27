@@ -14,7 +14,7 @@ provider "aws" {
 
 locals {
   rm     = "566277"
-  region = "us-east-1"
+  region = "us-east-2"
   name   = "fiap-eks-rm${local.rm}"
 }
 
