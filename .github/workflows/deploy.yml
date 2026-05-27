@@ -10,7 +10,6 @@ on:
         type: choice
         options:
           - deploy
-          - destroy
 
 env:
   AWS_REGION: us-east-1
@@ -100,45 +99,3 @@ jobs:
           kubectl get svc paybr-api-svc -n rm${{ env.RM }} \
             -o jsonpath='http://{.status.loadBalancer.ingress[0].hostname}{"\n"}'
 
-  destroy:
-    if: ${{ github.event.inputs.action == 'destroy' }}
-    name: Destroy All Resources
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Setup kubectl
-        run: |
-          curl -LO "https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl"
-          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
-
-      - name: Delete Namespace
-        continue-on-error: true
-        run: |
-          aws eks update-kubeconfig --name ${{ env.EKS_NAME }} --region ${{ env.AWS_REGION }}
-          kubectl delete namespace rm${{ env.RM }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.9
-
-      - name: Terraform Destroy
-        run: |
-          cd terraform
-          terraform init -upgrade
-          terraform destroy -auto-approve
-        env:
-          TF_IN_AUTOMATION: "true"
