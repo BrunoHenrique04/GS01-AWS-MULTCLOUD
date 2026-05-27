@@ -4,3 +4,13 @@ node_modules/
 *.key
 *.pem
 .DS_Store
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+override.tf
+*_override.tf

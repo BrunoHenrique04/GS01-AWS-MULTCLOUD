@@ -1,0 +1,144 @@
+name: Deploy PayBR EKS
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Ação'
+        required: true
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - destroy
+
+env:
+  AWS_REGION: us-east-1
+  RM: "566277"
+  EKS_NAME: "fiap-eks-rm566277"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: ${{ github.event.inputs.action == 'deploy' }}
+    name: Deploy Infra + App
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9
+
+      - name: Terraform Init & Apply
+        run: |
+          cd terraform
+          terraform init -upgrade
+          terraform apply -auto-approve
+        env:
+          TF_IN_AUTOMATION: "true"
+
+      - name: Setup kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
+      - name: Configure kubectl for EKS
+        run: |
+          aws eks update-kubeconfig --name ${{ env.EKS_NAME }} --region ${{ env.AWS_REGION }}
+          kubectl cluster-info
+
+      - name: Wait for Nodes
+        run: |
+          kubectl wait --for=condition=Ready nodes --all --timeout=300s
+          kubectl get nodes -o wide
+
+      - name: Deploy Application
+        run: |
+          kubectl create namespace rm${{ env.RM }} --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -f manifests/eks/deployment-eks.yaml
+          kubectl rollout status deployment/paybr-api -n rm${{ env.RM }} --timeout=180s
+
+      - name: Create ConfigMap
+        run: |
+          kubectl apply -f - << EOF
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: paybr-config
+            namespace: rm${{ env.RM }}
+          data:
+            CLOUD_PROVIDER: "AWS"
+            REGION: "${{ env.AWS_REGION }}"
+            CLUSTER_TYPE: "EKS Managed"
+            DB_HOST: "rds.internal"
+            FEATURE_FLAGS: "fraud-detection=true,auth=true,notifications=true"
+          EOF
+
+      - name: Validate
+        run: |
+          echo "=== Pods ==="
+          kubectl get pods -n rm${{ env.RM }} -o wide
+          echo "=== Services ==="
+          kubectl get svc -n rm${{ env.RM }}
+          echo "=== LB URL ==="
+          kubectl get svc paybr-api-svc -n rm${{ env.RM }} \
+            -o jsonpath='http://{.status.loadBalancer.ingress[0].hostname}{"\n"}'
+
+  destroy:
+    if: ${{ github.event.inputs.action == 'destroy' }}
+    name: Destroy All Resources
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
+      - name: Delete Namespace
+        continue-on-error: true
+        run: |
+          aws eks update-kubeconfig --name ${{ env.EKS_NAME }} --region ${{ env.AWS_REGION }}
+          kubectl delete namespace rm${{ env.RM }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9
+
+      - name: Terraform Destroy
+        run: |
+          cd terraform
+          terraform init -upgrade
+          terraform destroy -auto-approve
+        env:
+          TF_IN_AUTOMATION: "true"

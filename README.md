@@ -204,6 +204,34 @@ bash scripts/cleanup.sh
 
 ---
 
+---
+
+## Pipeline CI/CD — GitHub Actions
+
+O repositório possui um pipeline automatizado que sobe **tudo** (infra + app + validação).
+
+### Secrets necessários no GitHub
+
+| Secret | Descrição |
+|--------|-----------|
+| `AWS_ACCESS_KEY_ID` | Access Key da AWS |
+| `AWS_SECRET_ACCESS_KEY` | Secret Key da AWS |
+
+### Como usar
+
+1. Vá em **Actions > Deploy PayBR EKS > Run workflow**
+2. Escolha `deploy` (sobe cluster + app) ou `destroy` (remove tudo)
+3. Acompanhe os logs em tempo real
+
+### Pipeline local (alternativa)
+
+```bash
+bash scripts/deploy.sh     # sobe tudo
+bash scripts/destroy.sh    # remove tudo
+```
+
+---
+
 📸 **ENTREGA:** Tire um screenshot da página PayBR rodando no EKS e envie ao professor.
 
 FIAP — Cloud Computing | Lab 4 — Kubernetes na AWS | 2026
