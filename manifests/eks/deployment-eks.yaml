@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paybr-api
+  namespace: rm566277
+  labels:
+    app: paybr-api
+    cloud: eks
+    aluno: rm566277
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: paybr-api
+  template:
+    metadata:
+      labels:
+        app: paybr-api
+        cloud: eks
+    spec:
+      containers:
+        - name: paybr-api
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "128Mi"
+          env:
+            - name: CLOUD_PROVIDER
+              value: "AWS - Amazon Elastic Kubernetes Service"
+            - name: CLUSTER_NAME
+              value: "fiap-eks-rm566277"
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+      initContainers:
+        - name: init-html
+          image: busybox
+          command: ['sh', '-c']
+          args:
+            - |
+              cat > /html/index.html << 'HTMLEOF'
+              <!DOCTYPE html>
+              <html>
+              <head><title>PayBR - EKS</title>
+              <style>
+                body{font-family:Arial;background:#FF9900;color:white;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;}
+                .card{background:rgba(0,0,0,0.15);border-radius:12px;padding:40px;text-align:center;max-width:400px;}
+                h1{font-size:2em;margin-bottom:8px;}
+                .badge{background:#232F3E;padding:6px 16px;border-radius:20px;font-size:0.9em;}
+              </style></head>
+              <body>
+                <div class="card">
+                  <h1>PayBR Fintech</h1>
+                  <p>Cluster: fiap-eks-rm566277</p>
+                  <p>Cloud: <span class="badge">AWS / EKS</span></p>
+                  <p>Status: Operacional</p>
+                  <p>Aluno: RM566277 - BRUNO HENRIQUE MARTINS FERREIRA</p>
+                </div>
+              </body></html>
+              HTMLEOF
+          volumeMounts:
+            - name: html
+              mountPath: /html
+      volumes:
+        - name: html
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paybr-api-svc
+  namespace: rm566277
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+spec:
+  selector:
+    app: paybr-api
+  ports:
+    - port: 80
+      targetPort: 80
+  type: LoadBalancer
