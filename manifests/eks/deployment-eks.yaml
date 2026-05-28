@@ -76,9 +76,6 @@ kind: Service
 metadata:
   name: paybr-api-svc
   namespace: rm566277
-  annotations:
-    service.beta.kubernetes.io/aws-load-balancer-type: "external"
-    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
 spec:
   selector:
     app: paybr-api
