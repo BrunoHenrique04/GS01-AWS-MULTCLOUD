@@ -15,3 +15,4 @@ crash.log
 override.tf
 *_override.tf
 !.terraform.lock.hcl
+kubectl
